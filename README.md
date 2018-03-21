@@ -19,5 +19,6 @@ API of the library and ```python3.6```
 #### Where:
 * VERSION: The version of SRU protocol.
 * VARIANT: A variant to search the unam at the LC
+* YEAR: Year of the content
 * START_INDEX: The index of the pages of records (by default 1)
 * MAXIMUM_RECORDS: Maximum records by request

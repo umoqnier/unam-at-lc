@@ -28,7 +28,7 @@ def get_institution_codes():
 
 def data_cleaner(data):
     string = "|"
-    for record in data.findall("zs:record", NS):
+    for record in data.findall("zs:record", NS):  #TODO: Make with an exception
         dc = record.find("./zs:recordData/srw_dc:dc", NS)
 
         # POSITION
