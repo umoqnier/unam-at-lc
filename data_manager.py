@@ -28,90 +28,94 @@ def get_institution_codes():
 
 def data_cleaner(data):
     string = "|"
-    for record in data.findall("zs:record", NS):  #TODO: Make with an exception
-        dc = record.find("./zs:recordData/srw_dc:dc", NS)
+    try:
+        records = data.findall("zs:record", NS)
+        for record in records:
+            dc = record.find("./zs:recordData/srw_dc:dc", NS)
 
-        # POSITION
-        position = record.find("zs:recordPosition", NS).text + '|'
+            # POSITION
+            position = record.find("zs:recordPosition", NS).text
 
-        # TITLE
-        try:
-            string += dc.find("dc:title", NS).text + '|'
-        except AttributeError:
-            print("###Title not found at the " + position + "record")
-            string += "|not_found|"
+            # TITLE
+            try:
+                string += dc.find("dc:title", NS).text + '|'
+            except AttributeError:
+                print("###Title not found at the " + position + "record")
+                string += "|not_found|"
 
-        # CREATOR(S)
-        creators = dc.findall("dc:creator", NS)
-        if creators:
-            for creator in creators:
-                try:
-                    string += creator.text + '##'
-                except TypeError:
-                    print("[TAG] Error at Creator(s) at the " + position + "record")
-            string = string[:-2]  # Remove the last separators ##
-        else:
-            print("###Creator(s) not found at the " + position + "record")
-            string += 'not_found|'
-        string += '|'
+            # CREATOR(S)
+            creators = dc.findall("dc:creator", NS)
+            if creators:
+                for creator in creators:
+                    try:
+                        string += creator.text + '##'
+                    except TypeError:
+                        print("[TAG] Error at Creator(s) at the " + position + "record")
+                string = string[:-2]  # Remove the last separators ##
+            else:
+                print("###Creator(s) not found at the " + position + "record")
+                string += 'not_found|'
+            string += '|'
 
-        # TYPE
-        try:
-            string += dc.find("dc:type", NS).text + '|'
-        except AttributeError:
-            print("###Type not found at the " + position + "record")
-            string += 'not_found|'
+            # TYPE
+            try:
+                string += dc.find("dc:type", NS).text + '|'
+            except AttributeError:
+                print("###Type not found at the " + position + "record")
+                string += 'not_found|'
 
-        # PUBLISHER
-        try:
-            string += dc.find("dc:publisher", NS).text + '|'
-        except AttributeError:
-            print("###Publisher not found at the " + position + "record")
-            string += "not_found|"
+            # PUBLISHER
+            try:
+                string += dc.find("dc:publisher", NS).text + '|'
+            except AttributeError:
+                print("###Publisher not found at the " + position + "record")
+                string += "not_found|"
 
-        # DATE
-        try:
-            string += dc.find("dc:date", NS).text + '|'
-        except AttributeError:
-            print("###Date not found at the " + position + "record")
-            string += "not_found|"
+            # DATE
+            try:
+                string += dc.find("dc:date", NS).text + '|'
+            except AttributeError:
+                print("###Date not found at the " + position + "record")
+                string += "not_found|"
 
-        # LANGUAGE
-        try:
-            string += dc.find("dc:language", NS).text + '|'
-        except AttributeError:
-            print("###Publisher not found at the " + position + "record")
-            string += "not_found|"
+            # LANGUAGE
+            try:
+                string += dc.find("dc:language", NS).text + '|'
+            except AttributeError:
+                print("###Publisher not found at the " + position + "record")
+                string += "not_found|"
 
-        # DESCRIPTION
-        descriptions = dc.findall("dc:description", NS)
-        if descriptions:
-            for description in descriptions:
-                try:
-                    string += description.text + '##'
-                except TypeError:
-                    print("[TAG] Error at description(s) at the " + position + "record")
-            string = string[:-2]  # Remove the last separators ##
-        else:
-            print("###Description(s) not found at the " + position + "record")
-            string += 'not_found|'
-        string += '|'
+            # DESCRIPTION
+            descriptions = dc.findall("dc:description", NS)
+            if descriptions:
+                for description in descriptions:
+                    try:
+                        string += description.text + '##'
+                    except TypeError:
+                        print("[TAG] Error at description(s) at the " + position + "record")
+                string = string[:-2]  # Remove the last separators ##
+            else:
+                print("###Description(s) not found at the " + position + "record")
+                string += 'not_found|'
+            string += '|'
 
-        # IDENTIFIER
-        identifiers = dc.findall("dc:identifier", NS)
-        if identifiers:
-            for identifier in identifiers:
-                try:
-                    string += identifier.text + '##'
-                except TypeError:
-                    print("[TAG] Error at identifier(s) at the " + position + "record")
-            string = string[:-2]  # Remove the last separators ##
-        else:
-            print("###Identifier(s) not found at the " + position + "record")
-            string += 'not_found|'
-        string += '|\n|'
-
-    return string[:-1]  # Remove the last pipe "|"
+            # IDENTIFIER
+            identifiers = dc.findall("dc:identifier", NS)
+            if identifiers:
+                for identifier in identifiers:
+                    try:
+                        string += identifier.text + '##'
+                    except TypeError:
+                        print("[TAG] Error at identifier(s) at the " + position + "record")
+                string = string[:-2]  # Remove the last separators ##
+            else:
+                print("###Identifier(s) not found at the " + position + "record")
+                string += 'not_found'
+            string += '|\n|'
+        return string[:-1]  # Remove the last pipe "|"
+    except AttributeError:
+        print("Record not found")
+        return "RECORD NOT FOUND FOR THESE YEAR"
 
 
 def header_to_file(keyword, year):
@@ -128,7 +132,7 @@ def header_to_file(keyword, year):
         f_out.write("+" * 10 + "For: " + keyword + " at " + str(year) + "+" * 10 + "\n")
     else:
         f_out = open(file_name, 'a')
-        f_out.write("|#|title|Creator(s)|type|publisher|date|language|description(s)|identifier(s)|\n")
+        f_out.write("+|title|Creator(s)|type|publisher|date|language|description(s)|identifier(s)|\n")
         f_out.write("+" * 10 + "For: " + keyword + " at " + str(year) + "+"*10 + "\n")
 
     return f_out
@@ -136,14 +140,19 @@ def header_to_file(keyword, year):
 
 def data_to_file(data, total, file, first_time=0):
     if first_time:
-        file.write("total: " + str(total) + "=" * 10 + "\n")
+        file.write("+total: " + str(total) + "=" * 10 + "\n")
     data_c = data_cleaner(data)
     file.write(data_c)
 
 
 def scraper(xml, variant, year, file):
     root = ET.fromstring(xml)
-    total_records = root.find("zs:numberOfRecords", NS).text
+    total_global = 0
+    try:
+        total_records = root.find("zs:numberOfRecords", NS).text
+        total_global += int(total_records)
+    except AttributeError:
+        total_records = "0"
     try:
         next_record_position = root.find("zs:nextRecordPosition", NS).text
     except AttributeError:
@@ -163,31 +172,23 @@ def scraper(xml, variant, year, file):
         records = next_root.find("zs:records", NS)
         data_to_file(records, total_records, file)
 
+    return total_global
+
 
 def xml_processing(variants, year, start_record):
     """
     This function convert and process the xml data from function xml_requester
     :return:
     """
+    total = 0
     for variant in variants:
         while year <= 2018:
             file_output = header_to_file(variant, year)
-            print("+"*20 + "For " + str(year) + "+"*20 + " and " + variant)
+            print("+"*20 + "For " + str(year) + " and " + variant + "+"*20)
             xml_content = xml_requester(variant, str(year), str(start_record))
-            scraper(xml_content, variant, year, file_output)
+            total += scraper(xml_content, variant, year, file_output)
             year += 1
         start_record = 1
         year = 2008
+    return total
 
-
-def main():
-    variants = get_institution_codes()
-    year = 2008
-    start_record = 1
-    print("Start Processing")
-    xml_processing(variants, year, start_record)
-    print("Finish...")
-
-
-if __name__ == '__main__':
-    main()
