@@ -4,12 +4,7 @@ from difflib import SequenceMatcher
 import unicodedata
 from time import clock
 
-# TODO: Solucionar problema con escritura de archivo de salida
-# TODO: Cuando un autor entre a proximity se tendrá que recorrer toda la rupa patra buscar candidatos
-# TODO: Agregar lista de posibilidades par autores con proximity
-# TODO: Agregar verificación por tokens
-# TODO: Agregar pesos propios dada la verificacion por tokens
-
+# TODO: Solucionar problema con escritura de archivo de salida. Provicional impresion en pantalla
 
 def get_file():
     loc_file = open("info_unam_loc.txt", "r")
@@ -89,7 +84,7 @@ def proximity(rupa, loc_name):
         rupa_name = ' '.join(rupa_info[2:5])
         seq = SequenceMatcher(None, loc_name, rupa_name)
         ratio = seq.ratio()
-        ratio = adjust_ratio(loc_name, rupa_name, ratio)
+        # ratio = adjust_ratio(loc_name, rupa_name, ratio)
         if ratio >= 0.8999999999:
             print(str(count) + " PROXIMITY (>= 0.89): " + loc_name + " ~ " + rupa_name)
             candidates[rupa_name] = "2"
