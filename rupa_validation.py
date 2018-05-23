@@ -3,9 +3,10 @@ from string import punctuation, digits
 from difflib import SequenceMatcher
 import unicodedata
 from time import clock
+TOTAL_TIME = 0
 
-# TODO: Solucionar problema con escritura de archivo de salida. Provicional impresion en pantalla
-
+# TODO: Falla importante con articulos que tienen autores repetidos
+# TODO: Falla menor cuando el artículo solo tiene un autor
 
 def get_file():
     """
@@ -62,7 +63,7 @@ def perfect_match(rupa, loc_name):
     loc_name = strip_special_chars(loc_name)
     loc_name = loc_name.upper()
     loc_name = replace_accents(loc_name)
-    if ("UNIVERSIDAD" in loc_name) or ("MEXICO" in loc_name):  # To avoid names like "UNIVERDIAD NACIONAL..."
+    if ("UNIVERSIDAD" in loc_name) or ("MEXICO" in loc_name):  # To avoid names like "UNIVERSIAD NACIONAL..."
         return False
     while rupa_info:
         rupa_name = ' '.join(rupa_info[2:5])  # Transform RUPA name from list to string
@@ -151,6 +152,7 @@ def proximity(rupa, loc_name):
 
 
 def verifier():
+    global TOTAL_TIME
     print("<count> ALGORITHM: LOC NAMES <> RUPA NAMES")
     info_unam = get_file()
     output_file = open("salida.txt", "a")
@@ -183,10 +185,11 @@ def verifier():
                 candidates = proximity(rupa_iterator, worker)
                 toc = clock()
                 print("Time spend ~ ", (toc-tic)/60, "minutes")
+                TOTAL_TIME += toc-tic
                 rupa_file.seek(0)
                 if candidates != '0':
                     min_level = min([int(level) for level in candidates.values()])
-                    if i == len(workers) - 1:  # Last worker
+                    if (i == len(workers) - 1) or (len(workers) == 1):  # Last worker or only one worker
                         line[2] += "##" + worker + "(" + str(min_level) + ")"
                         line = '|'.join(line)
                         line += '|' + str(candidates) + '\n'
@@ -206,6 +209,7 @@ def verifier():
                 else:
                     print("Worker not found at RUPA-->", worker)
                     if i == len(workers) - 1:  # Last worker
+                        line[2] = worker + "(NF)"
                         line = '|'.join(line)
                         line += '\n'
                         print(line)
@@ -215,6 +219,7 @@ def verifier():
                         line[2] = worker + "(NF)"
                     else:  # Worker in the middle
                         line[2] += "##" + worker + "(NF)"
+    print("TOTAL TIME: ", TOTAL_TIME/60, "minutes", (TOTAL_TIME/60)/60, "hours", ((TOTAL_TIME/60)/60)/24, "days")
     rupa_file.close()
     output_file.close()
 
