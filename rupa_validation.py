@@ -7,17 +7,23 @@ TOTAL_TIME = 0
 
 # TODO: Falla importante con articulos que tienen autores repetidos
 # TODO: Falla menor cuando el artículo solo tiene un autor
+# TODO: Modificar función proximity para agregar número de empleado al diccionario
+# Ej: {"nombre": [proximidad, numero de emplado], ...}
 
-def get_file():
+
+def get_files():
     """
-    Get file with Library of Congress data
-    :return file object
+    Get files with Library of Congress data, output data, output authors and rupa database
+    :return tuple of files objects
     """
     loc_file = open("info_unam_loc.txt", "r")
-    return loc_file
+    data_file = open("data.txt", "a")
+    authors_file = open("authors.txt", "a")
+    rupa_file = open("rupa.csv", "r")
+    return loc_file, data_file, authors_file, rupa_file
 
 
-def get_line(file):
+def get_info_line(file):
     """
     Get line by line of file with LOC data
     :return List of data by line
@@ -57,7 +63,7 @@ def perfect_match(rupa, loc_name):
     Verify if a worker name is on RUPA database
     :param rupa: Iterator that enable RUPA search
     :param loc_name: Name of worker en LOC file
-    :return: Boolean. True if worker is on RUPA and false if not
+    :return: String number of employer if name is at RUPA and Boolean false if name is not at rupa
     """
     rupa_info = rupa.__next__()
     loc_name = strip_special_chars(loc_name)
@@ -69,7 +75,7 @@ def perfect_match(rupa, loc_name):
         rupa_name = ' '.join(rupa_info[2:5])  # Transform RUPA name from list to string
         if loc_name == rupa_name:
             print("PERFECT MATCH-->", loc_name, "==", rupa_name)
-            return True
+            return rupa_info[0]
         else:
             try:
                 rupa_info = rupa.__next__()
@@ -151,33 +157,43 @@ def proximity(rupa, loc_name):
                     return '0'  # Try all rupa workers names and nothing is found
 
 
+def authors_manager(employer_number, worker, c_id, mode, candidates=None):
+    """
+    Manage author information and make string line for authors_out file
+    :param employer_number: Information from RUPA Data Base
+    :param worker: Name of creator of article from LOC
+    :param c_id: Current Personal id for authors_out file
+    :param mode: Flag for perfect match or proximity case
+    :param candidates: Dictionary of candidates for proximity case
+    :return: String line with author information
+    """
+    if mode:  # Perfect Math case
+        line = str(c_id) + '|' + worker + "|1|" + employer_number + '\n'  # First worker
+    else:  # Proximity case
+        line = str(c_id) + '|' + worker + "|2|" + str(candidates) + '\n'  # First worker
+    print(line)
+    return line
+
+
 def verifier():
     global TOTAL_TIME
+    ids = 0
     print("<count> ALGORITHM: LOC NAMES <> RUPA NAMES")
-    info_unam = get_file()
-    output_file = open("salida.txt", "a")
-    rupa_file = open("rupa.csv", "r")
+    info_unam, data_out, authors_out, rupa_file = get_files()
     # HEADER: NumeroEmpleado,CodigoEntidad,ApellidoPaterno,ApellidoMaterno,Nombre,Entidad
     while True:
-        line = get_line(info_unam)
+        line = get_info_line(info_unam)
         if not line:
             break
-        workers = line[2]
+        workers = line.pop(2)
         workers = workers.split("##")
+        line[0] = ids
         rupa_iterator = iter(csv.reader(rupa_file))
         for i, worker in enumerate(workers):
-            if perfect_match(rupa_iterator, worker):
-                rupa_file.seek(0)
-                if i:
-                    line[2] += "##" + worker + "(1)"
-                    if i == len(workers) - 1:  # The last worker
-                        line = "|".join(line)
-                        line += '\n'
-                        print(line)
-                        output_file.write(line)
-                elif i == 0:
-                    line.pop()  # Remove the last \n
-                    line[2] = worker + "(1)"  # First worker
+            rupa_info = perfect_match(rupa_iterator, worker)
+            if rupa_info:
+                rupa_file.seek(0)  # Rewind RUPA iterator
+                line = authors_manager(rupa_info, worker, ids, 1)
             else:
                 rupa_file.seek(0)
                 rupa_iterator = iter(csv.reader(rupa_file))
@@ -219,9 +235,11 @@ def verifier():
                         line[2] = worker + "(NF)"
                     else:  # Worker in the middle
                         line[2] += "##" + worker + "(NF)"
+        ids += 1
     print("TOTAL TIME: ", TOTAL_TIME/60, "minutes", (TOTAL_TIME/60)/60, "hours", ((TOTAL_TIME/60)/60)/24, "days")
     rupa_file.close()
-    output_file.close()
+    authors_out.close()
+    data_out.close()
 
 
 verifier()
