@@ -63,7 +63,7 @@ def perfect_match(rupa, loc_name):
     Verify if a worker name is on RUPA database
     :param rupa: Iterator that enable RUPA search
     :param loc_name: Name of worker en LOC file
-    :return: String number of employer if name is at RUPA and Boolean false if name is not at rupa
+    :return: String number of employer if name is at RUPA or Boolean false if name is not at rupa
     """
     rupa_info = rupa.__next__()
     loc_name = strip_special_chars(loc_name)
@@ -75,7 +75,7 @@ def perfect_match(rupa, loc_name):
         rupa_name = ' '.join(rupa_info[2:5])  # Transform RUPA name from list to string
         if loc_name == rupa_name:
             print("PERFECT MATCH-->", loc_name, "==", rupa_name)
-            return rupa_info[0]
+            return rupa_info[0], rupa_info[5]
         else:
             try:
                 rupa_info = rupa.__next__()
@@ -126,7 +126,7 @@ def proximity(rupa, loc_name):
         # ratio = adjust_ratio(loc_name, rupa_name, ratio)
         if ratio >= 0.8399999999:
             print(str(count) + " PROXIMITY (>= 0.839): " + loc_name + " ~ " + rupa_name)
-            candidates[rupa_name] = "2"
+            candidates[rupa_name] = ["2", rupa_info[0], rupa_info[5]]
             try:
                 rupa_info = rupa.__next__()
                 count += 1
@@ -136,8 +136,11 @@ def proximity(rupa, loc_name):
                 else:
                     return '0'  # Try all rupa workers names and nothing is found
         elif ratio >= 0.7399999999:
-            print(str(count) + " PROXIMITY (>= 0.739): " + loc_name + " ~ " + rupa_name)
-            candidates[rupa_name] = "3"
+            if len(candidates) < 4:
+                print(str(count) + " PROXIMITY (>= 0.739): " + loc_name + " ~ " + rupa_name)
+                candidates[rupa_name] = ["3", rupa_info[0], rupa_info[5]]
+            else:  # Maximum 3 candidates that has 0.739... SecuenceMatcher value
+                print("Maximum PROXIMITY (>= 0.739) candidates has rebase")
             try:
                 rupa_info = rupa.__next__()
                 count += 1
@@ -157,10 +160,10 @@ def proximity(rupa, loc_name):
                     return '0'  # Try all rupa workers names and nothing is found
 
 
-def authors_manager(employer_number, worker, c_id, mode, candidates=None):
+def authors_manager(worker_data, worker, c_id, mode, candidates=None):
     """
     Manage author information and make string line for authors_out file
-    :param employer_number: Information from RUPA Data Base
+    :param worker_data: Information from RUPA Data Base. Number and institution
     :param worker: Name of creator of article from LOC
     :param c_id: Current Personal id for authors_out file
     :param mode: Flag for perfect match or proximity case
@@ -168,7 +171,7 @@ def authors_manager(employer_number, worker, c_id, mode, candidates=None):
     :return: String line with author information
     """
     if mode:  # Perfect Math case
-        line = str(c_id) + '|' + worker + "|1|" + employer_number + '\n'  # First worker
+        line = str(c_id) + '|' + worker + "|1|" + worker_data[0] + '|' + worker_data[1] + '\n'  # First worker
     else:  # Proximity case
         line = str(c_id) + '|' + worker + "|2|" + str(candidates) + '\n'  # First worker
     print(line)
@@ -193,7 +196,8 @@ def verifier():
             rupa_info = perfect_match(rupa_iterator, worker)
             if rupa_info:
                 rupa_file.seek(0)  # Rewind RUPA iterator
-                line = authors_manager(rupa_info, worker, ids, 1)
+                author_line = authors_manager(rupa_info, worker, ids, 1)
+                authors_out.write(author_line)
             else:
                 rupa_file.seek(0)
                 rupa_iterator = iter(csv.reader(rupa_file))
