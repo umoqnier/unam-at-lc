@@ -124,8 +124,8 @@ def proximity(rupa, loc_name):
         seq = SequenceMatcher(None, loc_name, rupa_name)
         ratio = seq.ratio()
         # ratio = adjust_ratio(loc_name, rupa_name, ratio)
-        if ratio >= 0.8399999999:
-            print(str(count) + " PROXIMITY (>= 0.839): " + loc_name + " ~ " + rupa_name)
+        if ratio >= 0.8099999999:
+            print(str(count) + " PROXIMITY (>= 0.809): " + loc_name + " ~ " + rupa_name)
             candidates[rupa_name] = ["2", rupa_info[0], rupa_info[5]]
             try:
                 rupa_info = rupa.__next__()
@@ -135,9 +135,9 @@ def proximity(rupa, loc_name):
                     return candidates  # Dictionary of candidates
                 else:
                     return '0'  # Try all rupa workers names and nothing is found
-        elif ratio >= 0.7399999999:
+        elif ratio >= 0.7099999999:
             if len(candidates) < 4:
-                print(str(count) + " PROXIMITY (>= 0.739): " + loc_name + " ~ " + rupa_name)
+                print(str(count) + " PROXIMITY (>= 0.709): " + loc_name + " ~ " + rupa_name)
                 candidates[rupa_name] = ["3", rupa_info[0], rupa_info[5]]
             else:  # Maximum 3 candidates that has 0.739... SecuenceMatcher value
                 print("Maximum PROXIMITY (>= 0.739) candidates has rebase")
@@ -160,27 +160,34 @@ def proximity(rupa, loc_name):
                     return '0'  # Try all rupa workers names and nothing is found
 
 
-def authors_manager(worker_data, worker, c_id, mode, candidates=None):
+def authors_manager(worker, c_id, mode, data, min_level=None):
     """
     Manage author information and make string line for authors_out file
-    :param worker_data: Information from RUPA Data Base. Number and institution
+    :param min_level:
+    :param data: Information from RUPA Data Base. Number and institution or Candidates Dictionary
     :param worker: Name of creator of article from LOC
     :param c_id: Current Personal id for authors_out file
     :param mode: Flag for perfect match or proximity case
-    :param candidates: Dictionary of candidates for proximity case
     :return: String line with author information
     """
     if mode:  # Perfect Math case
-        line = str(c_id) + '|' + worker + "|1|" + worker_data[0] + '|' + worker_data[1] + '\n'  # First worker
+        line = str(c_id) + '|' + worker + "|1|" + data[0] + '|' + data[1] + '\n'  # First worker
     else:  # Proximity case
-        line = str(c_id) + '|' + worker + "|2|" + str(candidates) + '\n'  # First worker
+        line = str(c_id) + '|' + worker + '|' + str(min_level) + '|' + str(data) + '\n'  # First worker
     print(line)
     return line
+
+
+def get_min_proximity_level(candidates):
+    data = list(candidates.values())
+    levels = [l[0] for l in data]
+    return min([int(level) for level in levels])
 
 
 def verifier():
     global TOTAL_TIME
     ids = 0
+    authors_not_found = 0
     print("<count> ALGORITHM: LOC NAMES <> RUPA NAMES")
     info_unam, data_out, authors_out, rupa_file = get_files()
     # HEADER: NumeroEmpleado,CodigoEntidad,ApellidoPaterno,ApellidoMaterno,Nombre,Entidad
@@ -190,13 +197,13 @@ def verifier():
             break
         workers = line.pop(2)
         workers = workers.split("##")
-        line[0] = ids
+        line[0] = str(ids)
         rupa_iterator = iter(csv.reader(rupa_file))
         for i, worker in enumerate(workers):
             rupa_info = perfect_match(rupa_iterator, worker)
             if rupa_info:
                 rupa_file.seek(0)  # Rewind RUPA iterator
-                author_line = authors_manager(rupa_info, worker, ids, 1)
+                author_line = authors_manager(worker, ids, 1, rupa_info)
                 authors_out.write(author_line)
             else:
                 rupa_file.seek(0)
@@ -208,39 +215,22 @@ def verifier():
                 TOTAL_TIME += toc-tic
                 rupa_file.seek(0)
                 if candidates != '0':
-                    min_level = min([int(level) for level in candidates.values()])
-                    if (i == len(workers) - 1) or (len(workers) == 1):  # Last worker or only one worker
-                        line[2] += "##" + worker + "(" + str(min_level) + ")"
-                        line = '|'.join(line)
-                        line += '|' + str(candidates) + '\n'
-                        print(line)
-                        output_file.write(line)
-                    elif i == 0:  # First worker
-                        line.pop()  # Remove the last \n
-                        line[2] = worker + "(" + str(min_level) + ")"
-                        line = '|'.join(line)
-                        line += '|' + str(candidates) + '##'
-                        line = line.split('|')
-                    else:  # Worker in the middle
-                        line[2] += "##" + worker + "(" + str(min_level) + ")"
-                        line = '|'.join(line)
-                        line += '|' + str(candidates) + '##'
-                        line = line.split('|')
+                    min_level = get_min_proximity_level(candidates)
+                    author_line = authors_manager(worker, ids, 0, candidates, min_level)
+                    authors_out.write(author_line)
                 else:
                     print("Worker not found at RUPA-->", worker)
-                    if i == len(workers) - 1:  # Last worker
-                        line[2] = worker + "(NF)"
-                        line = '|'.join(line)
-                        line += '\n'
-                        print(line)
-                        output_file.write(line)
-                    elif i == 0:  # First worker
-                        line.pop()  # Remove the last \n
-                        line[2] = worker + "(NF)"
-                    else:  # Worker in the middle
-                        line[2] += "##" + worker + "(NF)"
-        ids += 1
-    print("TOTAL TIME: ", TOTAL_TIME/60, "minutes", (TOTAL_TIME/60)/60, "hours", ((TOTAL_TIME/60)/60)/24, "days")
+                    authors_not_found += 1
+        if authors_not_found == len(workers):
+            print("Skip line. 0 authors found at RUPA -> ID:", ids)
+            authors_not_found = 0
+        else:
+            line = '|'.join(line)
+            data_out.write(line)
+            ids += 1
+    print("=" * 15, "TIMER", "*" * 15)
+    print('->', TOTAL_TIME/60, '->',  "minutes", (TOTAL_TIME/60)/60, '->',  "hours", '->',  ((TOTAL_TIME/60)/60)/24, "days")
+    print("=" * 30)
     rupa_file.close()
     authors_out.close()
     data_out.close()
